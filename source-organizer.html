@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Research Source Organizer</title>
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --primary:    #1E3A5F;
+      --accent:     #2563EB;
+      --accent-lt:  #DBEAFE;
+      --green:      #16A34A;
+      --green-lt:   #DCFCE7;
+      --red:        #DC2626;
+      --red-lt:     #FEE2E2;
+      --amber:      #D97706;
+      --amber-lt:   #FEF3C7;
+      --gray:       #64748B;
+      --gray-lt:    #F1F5F9;
+      --border:     #CBD5E1;
+      --white:      #FFFFFF;
+      --bg:         #F1F5F9;
+      --text:       #0F172A;
+      --muted:      #64748B;
+      --shadow:     rgba(0,0,0,0.07);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    img { display: block; max-width: 100%; }
+    a { color: var(--accent); }
+
+    /* HEADER */
+    header { background: var(--primary); color: white; padding: 1.2rem 2rem; display: flex; align-items: center; gap: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+    .header-icon { background: rgba(255,255,255,0.15); border-radius: 8px; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .header-icon svg { width: 22px; height: 22px; fill: white; }
+    header h1 { font-size: 1.2rem; font-weight: 700; }
+    header p { font-size: 0.85rem; opacity: 0.7; margin-top: 1px; }
+
+    /* TABS */
+    .tabs { background: white; border-bottom: 3px solid var(--border); display: flex; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.06); overflow-x: auto; }
+    .tab-btn { padding: 0.9rem 1.5rem; border: none; background: none; cursor: pointer; font-family: inherit; font-size: 0.9rem; font-weight: 600; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -3px; white-space: nowrap; transition: all 0.2s; }
+    .tab-btn:hover { color: var(--accent); }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--accent); }
+
+    /* LAYOUT */
+    .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* CARDS */
+    .card { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 1.6rem; margin-bottom: 1.2rem; box-shadow: 0 1px 4px var(--shadow); }
+    .card-title { font-size: 1.05rem; font-weight: 700; color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; margin-bottom: 1.2rem; }
+
+    /* FORMS */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .form-group { margin-bottom: 0; }
+    .form-group.full { grid-column: 1 / -1; }
+    label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 0.3rem; color: var(--text); }
+    input[type=text], input[type=number], input[type=url], select, textarea {
+      width: 100%; padding: 0.65rem 0.85rem; border: 1.5px solid var(--border); border-radius: 7px;
+      font-family: inherit; font-size: 0.92rem; color: var(--text); background: white; transition: border-color 0.2s; outline: none;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+    textarea { resize: vertical; min-height: 90px; }
+
+    /* STANCE RADIO */
+    .stance-group { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.2rem; }
+    .stance-radio { display: none; }
+    .stance-label {
+      padding: 0.4rem 1rem; border-radius: 100px; border: 1.5px solid var(--border);
+      font-size: 0.83rem; font-weight: 600; cursor: pointer; transition: all 0.15s; color: var(--muted);
+    }
+    .stance-radio:checked + .stance-label { color: white; }
+    #stance-supports:checked   + .stance-label { background: var(--green);  border-color: var(--green); }
+    #stance-challenges:checked + .stance-label { background: var(--red);    border-color: var(--red); }
+    #stance-background:checked + .stance-label { background: var(--accent); border-color: var(--accent); }
+    #stance-neutral:checked    + .stance-label { background: var(--gray);   border-color: var(--gray); }
+
+    /* BUTTONS */
+    .btn { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.6rem 1.3rem; border: 2px solid transparent; border-radius: 7px; font-family: inherit; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.18s; }
+    .btn-primary { background: var(--primary); color: white; border-color: var(--primary); }
+    .btn-primary:hover { background: #142b46; border-color: #142b46; }
+    .btn-blue { background: var(--accent); color: white; border-color: var(--accent); }
+    .btn-blue:hover { background: #1D4ED8; border-color: #1D4ED8; }
+    .btn-outline { background: transparent; color: var(--primary); border-color: var(--primary); }
+    .btn-outline:hover { background: var(--primary); color: white; }
+    .btn-sm { padding: 0.3rem 0.75rem; font-size: 0.78rem; border-radius: 5px; border-width: 1.5px; }
+    .btn-danger { background: transparent; color: var(--red); border-color: var(--red); }
+    .btn-danger:hover { background: var(--red); color: white; }
+    .btn-group { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; }
+
+    /* DROP ZONE */
+    .drop-zone { border: 2px dashed var(--accent); border-radius: 10px; padding: 1.5rem; text-align: center; color: var(--muted); cursor: pointer; transition: all 0.2s; font-size: 0.9rem; }
+    .drop-zone:hover, .drop-zone.dragover { background: rgba(37,99,235,0.04); border-color: var(--primary); }
+
+    /* STATS STRIP */
+    .stats-strip { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.2rem; }
+    .stat-pill { background: white; border: 1px solid var(--border); border-radius: 100px; padding: 0.4rem 1rem; font-size: 0.83rem; font-weight: 600; color: var(--primary); }
+    .stat-pill span { color: var(--accent); }
+
+    /* FILTER BAR */
+    .filter-bar { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.2rem; align-items: flex-end; }
+    .filter-bar .form-group { margin: 0; flex: 1; min-width: 140px; }
+
+    /* TABLE */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th { background: var(--primary); color: white; padding: 0.65rem 0.75rem; text-align: left; font-weight: 600; white-space: nowrap; }
+    td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:hover td { background: var(--accent-lt); }
+    td.title-cell { font-weight: 600; max-width: 200px; }
+    td.title-cell small { display: block; font-weight: 400; color: var(--muted); font-size: 0.78rem; }
+
+    /* STANCE BADGES */
+    .badge { display: inline-block; padding: 0.18rem 0.65rem; border-radius: 100px; font-size: 0.73rem; font-weight: 700; white-space: nowrap; }
+    .badge-supports    { background: var(--green-lt);  color: var(--green); }
+    .badge-challenges  { background: var(--red-lt);    color: var(--red); }
+    .badge-background  { background: var(--accent-lt); color: var(--accent); }
+    .badge-neutral     { background: var(--gray-lt);   color: var(--gray); }
+
+    /* TAG CHIPS */
+    .tag-chip { display: inline-block; background: var(--accent-lt); color: var(--primary); border-radius: 100px; padding: 0.15rem 0.55rem; font-size: 0.73rem; font-weight: 600; margin: 2px; }
+
+    /* THEME MAP */
+    .theme-group { margin-bottom: 2rem; }
+    .theme-group-title { font-size: 0.76rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 0.75rem; }
+    .theme-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.75rem; }
+    .theme-card { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 0.85rem 1rem 0.85rem 0.85rem; border-left: 5px solid var(--border); }
+    .theme-card.supports   { border-left-color: var(--green); }
+    .theme-card.challenges { border-left-color: var(--red); }
+    .theme-card.background { border-left-color: var(--accent); }
+    .theme-card.neutral    { border-left-color: var(--gray); }
+    .theme-card-title { font-size: 0.86rem; font-weight: 700; color: var(--primary); margin-bottom: 3px; }
+    .theme-card-meta  { font-size: 0.76rem; color: var(--muted); }
+
+    /* BIBLIOGRAPHY */
+    .bib-controls { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-bottom: 1.2rem; }
+    .format-btn { padding: 0.4rem 1.1rem; border: 1.5px solid var(--border); border-radius: 6px; background: white; font-family: inherit; font-size: 0.86rem; font-weight: 600; cursor: pointer; color: var(--muted); transition: all 0.15s; }
+    .format-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+    .bib-entry { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.1rem; margin-bottom: 0.8rem; position: relative; }
+    .bib-citation { font-size: 0.9rem; line-height: 1.55; margin-bottom: 0.5rem; }
+    .bib-citation em { font-style: italic; }
+    .bib-annotation { font-size: 0.86rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: 0.5rem; margin-top: 0.5rem; font-style: italic; }
+    .bib-copy-btn { position: absolute; top: 0.6rem; right: 0.6rem; padding: 0.2rem 0.6rem; font-size: 0.73rem; }
+    .bib-output-box { background: var(--gray-lt); border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem; font-family: 'Courier New', monospace; font-size: 0.83rem; white-space: pre-wrap; max-height: 500px; overflow-y: auto; line-height: 1.7; }
+
+    /* OUTLINE */
+    .thesis-box { background: var(--accent-lt); border: 1.5px solid var(--accent); border-radius: 8px; padding: 1rem 1.1rem; margin-bottom: 1.5rem; }
+    .thesis-box label { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); margin-bottom: 0.4rem; }
+    .thesis-box textarea { background: white; border: 1px solid var(--border); min-height: 60px; }
+    .outline-section { margin-bottom: 1.4rem; }
+    .outline-section-title { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.6rem; padding: 0.35rem 0.85rem; border-radius: 5px; display: inline-block; }
+    .outline-supports   .outline-section-title { background: var(--green-lt);  color: var(--green); }
+    .outline-challenges .outline-section-title { background: var(--red-lt);    color: var(--red); }
+    .outline-background .outline-section-title { background: var(--accent-lt); color: var(--accent); }
+    .outline-neutral    .outline-section-title { background: var(--gray-lt);   color: var(--gray); }
+    .outline-source-list { list-style: none; padding-left: 0.5rem; }
+    .outline-source-list li { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; display: flex; align-items: flex-start; gap: 0.6rem; }
+    .outline-source-list li:last-child { border-bottom: none; }
+    .outline-source-list li::before { content: "›"; color: var(--accent); font-weight: 700; flex-shrink: 0; }
+    .outline-empty { color: var(--muted); font-size: 0.86rem; font-style: italic; padding: 0.5rem 0; }
+
+    /* MODAL */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 500; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: white; border-radius: 12px; padding: 1.8rem; max-width: 680px; width: 95%; max-height: 90vh; overflow-y: auto; box-shadow: 0 16px 48px rgba(0,0,0,0.2); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; padding-bottom: 0.75rem; border-bottom: 2px solid var(--accent); }
+    .modal-header h2 { font-size: 1.05rem; color: var(--primary); }
+    .modal-close { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: var(--muted); line-height: 1; }
+    .modal-close:hover { color: var(--red); }
+
+    /* CITE MODAL */
+    .cite-block { background: var(--gray-lt); border: 1px solid var(--border); border-radius: 7px; padding: 0.85rem 1rem; margin-bottom: 0.75rem; position: relative; }
+    .cite-block label { font-size: 0.73rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 700; margin-bottom: 0.3rem; font-family: inherit; }
+    .cite-block p { font-size: 0.86rem; font-family: 'Courier New', monospace; line-height: 1.6; }
+    .cite-block .copy-btn { position: absolute; top: 0.5rem; right: 0.5rem; }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--primary); color: white; padding: 0.85rem 1.3rem; border-radius: 8px; font-size: 0.88rem; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,0.18); transform: translateY(80px); opacity: 0; transition: all 0.35s; z-index: 1000; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    /* EMPTY STATE */
+    .empty-state { text-align: center; padding: 3rem 1rem; color: var(--muted); }
+    .empty-state h3 { font-size: 1.05rem; margin-bottom: 0.5rem; color: var(--primary); }
+    .empty-state p { font-size: 0.88rem; }
+
+    /* ABOUT TAB */
+    .about-step { background: var(--gray-lt); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 8px; padding: 0.9rem 1rem; }
+    .about-step-label { font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--accent); margin-bottom: 0.4rem; }
+    .about-step-desc { font-size: 0.88rem; color: var(--muted); line-height: 1.6; }
+    .about-stance-row { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+    .about-stance-row:last-child { border-bottom: none; }
+    .about-stance-row .badge { flex-shrink: 0; margin-top: 2px; min-width: 80px; text-align: center; }
+    .about-stance-desc { font-size: 0.88rem; color: var(--muted); line-height: 1.6; }
+    .about-cite-block { background: var(--gray-lt); border: 1px solid var(--border); border-radius: 8px; padding: 0.9rem 1rem; }
+    .about-cite-name { font-size: 0.9rem; font-weight: 700; color: var(--primary); margin-bottom: 0.4rem; }
+    .about-cite-desc { font-size: 0.85rem; color: var(--muted); line-height: 1.6; margin-bottom: 0.5rem; }
+    .about-cite-example { font-size: 0.82rem; font-family: 'Courier New', monospace; background: white; border: 1px solid var(--border); border-radius: 4px; padding: 0.4rem 0.6rem; color: var(--text); line-height: 1.5; }
+
+    /* RESPONSIVE */
+    @media (max-width: 640px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .form-group.full { grid-column: 1; }
+      header h1 { font-size: 1rem; }
+      .container { padding: 1.2rem 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-icon">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+    </svg>
+  </div>
+  <div>
+    <h1>Research Source Organizer</h1>
+    <p>Organize sources · Build bibliographies · Map your argument</p>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" onclick="switchTab('add',this)">➕ Add Source</button>
+  <button class="tab-btn" onclick="switchTab('browse',this)">📋 Browse Sources</button>
+  <button class="tab-btn" onclick="switchTab('map',this)">🗺️ Theme Map</button>
+  <button class="tab-btn" onclick="switchTab('bib',this)">📚 Bibliography</button>
+  <button class="tab-btn" onclick="switchTab('outline',this)">📝 Outline Helper</button>
+  <button class="tab-btn" onclick="switchTab('about',this)">ℹ️ About</button>
+</nav>
+
+<div class="container">
+
+  <!-- ════════ TAB 1: ADD SOURCE ════════ -->
+  <div id="tab-add" class="tab-pane active">
+    <div class="card">
+      <div class="card-title">Add a New Source</div>
+      <div class="form-grid">
+        <div class="form-group full">
+          <label for="src-title">Title *</label>
+          <input type="text" id="src-title" placeholder="Full title of the source" />
+        </div>
+        <div class="form-group">
+          <label for="src-author">Author *</label>
+          <input type="text" id="src-author" placeholder="Last, First (or Organization)" />
+        </div>
+        <div class="form-group">
+          <label for="src-year">Year *</label>
+          <input type="number" id="src-year" placeholder="e.g. 2023" min="1000" max="2099" />
+        </div>
+        <div class="form-group">
+          <label for="src-publication">Publication / Website</label>
+          <input type="text" id="src-publication" placeholder="Journal, publisher, or site name" />
+        </div>
+        <div class="form-group">
+          <label for="src-url">URL</label>
+          <input type="url" id="src-url" placeholder="https://..." />
+        </div>
+        <div class="form-group">
+          <label for="src-type">Source Type</label>
+          <select id="src-type">
+            <option value="article">Journal Article</option>
+            <option value="book">Book</option>
+            <option value="website">Website</option>
+            <option value="newspaper">Newspaper</option>
+            <option value="video">Video / Documentary</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Stance Toward Your Thesis *</label>
+          <div class="stance-group">
+            <input class="stance-radio" type="radio" name="stance" id="stance-supports"   value="supports"   checked />
+            <label class="stance-label" for="stance-supports">Supports</label>
+            <input class="stance-radio" type="radio" name="stance" id="stance-challenges" value="challenges" />
+            <label class="stance-label" for="stance-challenges">Challenges</label>
+            <input class="stance-radio" type="radio" name="stance" id="stance-background" value="background" />
+            <label class="stance-label" for="stance-background">Background</label>
+            <input class="stance-radio" type="radio" name="stance" id="stance-neutral"    value="neutral" />
+            <label class="stance-label" for="stance-neutral">Neutral</label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="src-tags">Topic Tags</label>
+          <input type="text" id="src-tags" placeholder="comma-separated: climate, policy, youth" />
+        </div>
+        <div class="form-group full">
+          <label for="src-annotation">Your Annotation *</label>
+          <textarea id="src-annotation" placeholder="Write 2–3 sentences: what is this source about, and how does it relate to your topic?" rows="3"></textarea>
+        </div>
+        <div class="form-group full">
+          <label for="src-text">Source Text / Key Quotes <small style="font-weight:400;color:var(--muted)">(optional — used for keyword search)</small></label>
+          <textarea id="src-text" placeholder="Paste an abstract, key passages, or notes from the source..." rows="4"></textarea>
+        </div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="addSource()">➕ Add Source</button>
+        <button class="btn btn-outline" onclick="loadSampleData()">📥 Load Sample Data</button>
+        <button class="btn btn-outline" onclick="clearAddForm()">🗑️ Clear</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Extract Text from PDF or DOCX</div>
+      <p style="color:var(--muted);font-size:0.88rem;margin-bottom:1rem;">Upload a source document — the text is extracted locally in your browser and pre-filled above for editing before saving.</p>
+      <div class="drop-zone" id="docDropZone" onclick="document.getElementById('docFile').click()">
+        📄 Click to select a PDF or DOCX, or drag &amp; drop here
+      </div>
+      <input type="file" id="docFile" accept=".pdf,.docx" style="display:none" onchange="handleDocImport(event)" />
+      <div id="docStatus" style="margin-top:0.6rem;font-size:0.86rem;color:var(--muted);"></div>
+    </div>
+  </div>
+
+  <!-- ════════ TAB 2: BROWSE ════════ -->
+  <div id="tab-browse" class="tab-pane">
+    <div class="filter-bar">
+      <div class="form-group">
+        <label>Search</label>
+        <input type="text" id="searchInput" placeholder="Title, author, tags…" oninput="renderTable()" />
+      </div>
+      <div class="form-group">
+        <label>Stance</label>
+        <select id="filterStance" onchange="renderTable()">
+          <option value="">All</option>
+          <option value="supports">Supports</option>
+          <option value="challenges">Challenges</option>
+          <option value="background">Background</option>
+          <option value="neutral">Neutral</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Type</label>
+        <select id="filterType" onchange="renderTable()">
+          <option value="">All</option>
+          <option value="article">Article</option>
+          <option value="book">Book</option>
+          <option value="website">Website</option>
+          <option value="newspaper">Newspaper</option>
+          <option value="video">Video</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Tag</label>
+        <select id="filterTag" onchange="renderTable()">
+          <option value="">All Tags</option>
+        </select>
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button class="btn btn-danger btn-sm" onclick="if(confirm('Delete ALL sources?')){sources=[];saveData();renderTable();}">🗑️ Clear All</button>
+      </div>
+    </div>
+
+    <div id="statsStrip" class="stats-strip"></div>
+
+    <div class="card">
+      <div class="card-title">Sources Library (<span id="sourceCount">0</span> entries)</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Title / Author</th>
+              <th>Year</th>
+              <th>Type</th>
+              <th>Stance</th>
+              <th>Tags</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ TAB 3: THEME MAP ════════ -->
+  <div id="tab-map" class="tab-pane">
+    <div class="card" style="margin-bottom:1rem;">
+      <div style="display:flex;gap:1.5rem;flex-wrap:wrap;font-size:0.83rem;font-weight:600;">
+        <span style="display:flex;align-items:center;gap:0.4rem;"><span style="width:13px;height:13px;background:var(--green);border-radius:3px;display:inline-block;"></span>Supports</span>
+        <span style="display:flex;align-items:center;gap:0.4rem;"><span style="width:13px;height:13px;background:var(--red);border-radius:3px;display:inline-block;"></span>Challenges</span>
+        <span style="display:flex;align-items:center;gap:0.4rem;"><span style="width:13px;height:13px;background:var(--accent);border-radius:3px;display:inline-block;"></span>Background</span>
+        <span style="display:flex;align-items:center;gap:0.4rem;"><span style="width:13px;height:13px;background:var(--gray);border-radius:3px;display:inline-block;"></span>Neutral</span>
+      </div>
+    </div>
+    <div id="themeMapContent"></div>
+  </div>
+
+  <!-- ════════ TAB 4: BIBLIOGRAPHY ════════ -->
+  <div id="tab-bib" class="tab-pane">
+    <div class="card">
+      <div class="card-title">Annotated Bibliography</div>
+      <div class="bib-controls">
+        <span style="font-weight:600;font-size:0.86rem;color:var(--muted);">Format:</span>
+        <button class="format-btn active" onclick="setFormat('mla',this)">MLA 9th</button>
+        <button class="format-btn" onclick="setFormat('apa',this)">APA 7th</button>
+        <button class="format-btn" onclick="setFormat('chicago',this)">Chicago</button>
+        <div style="margin-left:auto;display:flex;gap:0.6rem;">
+          <button class="btn btn-outline btn-sm" onclick="copyAllBib()">📋 Copy All</button>
+          <button class="btn btn-outline btn-sm" onclick="downloadBib()">📥 Download TXT</button>
+        </div>
+      </div>
+      <div id="bibContent"></div>
+    </div>
+  </div>
+
+  <!-- ════════ TAB 5: OUTLINE HELPER ════════ -->
+  <div id="tab-outline" class="tab-pane">
+    <div class="thesis-box">
+      <label>Your Thesis Statement</label>
+      <textarea id="thesisInput" placeholder="Type your thesis statement here — sources will be grouped to support your paper structure…" rows="3" oninput="renderOutline()"></textarea>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;">
+      <button class="btn btn-outline btn-sm" onclick="downloadOutline()">📥 Download Outline TXT</button>
+    </div>
+    <div id="outlineContent"></div>
+  </div>
+
+  <!-- ════════ TAB 6: ABOUT ════════ -->
+  <div id="tab-about" class="tab-pane">
+
+    <div class="card">
+      <div class="card-title">What is Research Source Organizer?</div>
+      <p style="font-size:0.95rem;line-height:1.75;margin-bottom:1rem;">
+        Research Source Organizer is a browser-based tool for students writing research papers. It helps you collect, annotate, and organize your sources — and then use them to build a bibliography and draft a paper outline.
+      </p>
+      <p style="font-size:0.95rem;line-height:1.75;margin-bottom:1rem;">
+        Everything runs locally in your browser. No account, no login, and no data is sent to any server. Your sources are saved automatically in your browser's local storage between sessions.
+      </p>
+      <p style="font-size:0.95rem;line-height:1.75;">
+        You can also upload PDF or DOCX files to extract their text directly into the source form — useful for pulling quotes and passages from reading you have already done.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">How to Use It</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:0.75rem;">
+        <div class="about-step">
+          <div class="about-step-label">1 — Add Source</div>
+          <div class="about-step-desc">Enter the title, author, year, and publication. Write a 2–3 sentence annotation summarizing the source and how it connects to your topic. Assign a stance and topic tags.</div>
+        </div>
+        <div class="about-step">
+          <div class="about-step-label">2 — Browse &amp; Filter</div>
+          <div class="about-step-desc">Search your source library by keyword, stance, type, or tag. Edit or delete any entry. The stats strip shows your stance balance at a glance.</div>
+        </div>
+        <div class="about-step">
+          <div class="about-step-label">3 — Theme Map</div>
+          <div class="about-step-desc">See all sources grouped by topic tag with color-coded stance borders. Use this to spot gaps — topics where you have no counter-arguments, or themes with only one source.</div>
+        </div>
+        <div class="about-step">
+          <div class="about-step-label">4 — Bibliography</div>
+          <div class="about-step-desc">Generate a formatted annotated bibliography in MLA 9th, APA 7th, or Chicago style. Copy individual citations or download the full bibliography as a text file.</div>
+        </div>
+        <div class="about-step">
+          <div class="about-step-label">5 — Outline Helper</div>
+          <div class="about-step-desc">Type your thesis statement and see your sources automatically sorted into paper sections by stance — Background, Supporting Evidence, Counter-Arguments, and Neutral Perspectives.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Understanding Stance</div>
+      <p style="font-size:0.9rem;color:var(--muted);margin-bottom:1rem;">Every source you add is assigned one of four stances relative to your thesis. This drives the Theme Map, the Outline Helper, and the stats strip in Browse.</p>
+      <div style="display:flex;flex-direction:column;gap:0.6rem;">
+        <div class="about-stance-row">
+          <span class="badge badge-supports">Supports</span>
+          <span class="about-stance-desc">The source provides evidence, data, or arguments that directly back your thesis. These are your primary building blocks.</span>
+        </div>
+        <div class="about-stance-row">
+          <span class="badge badge-challenges">Challenges</span>
+          <span class="about-stance-desc">The source argues against your thesis or presents evidence that complicates it. Including these makes your paper more credible — acknowledge and rebut them.</span>
+        </div>
+        <div class="about-stance-row">
+          <span class="badge badge-background">Background</span>
+          <span class="about-stance-desc">The source provides context, definitions, history, or statistics that frame your topic without taking a side. Usually appears in your introduction.</span>
+        </div>
+        <div class="about-stance-row">
+          <span class="badge badge-neutral">Neutral</span>
+          <span class="about-stance-desc">The source presents nuance, multiple perspectives, or findings that don't fit neatly into support or challenge. Useful for a balanced conclusion.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Citation Formats</div>
+      <p style="font-size:0.9rem;color:var(--muted);margin-bottom:1rem;">The Bibliography tab generates formatted citations automatically. The tool applies standard rules for each format — but always verify citations against your style guide before submitting.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:0.75rem;">
+        <div class="about-cite-block">
+          <div class="about-cite-name">MLA 9th Edition</div>
+          <div class="about-cite-desc">Common in humanities, literature, and language courses. Author's last name first. Article titles in quotation marks; book and journal titles italicized.</div>
+          <div class="about-cite-example">Smith, Jane. "Article Title." <em>Journal Name</em>, 2023.</div>
+        </div>
+        <div class="about-cite-block">
+          <div class="about-cite-name">APA 7th Edition</div>
+          <div class="about-cite-desc">Standard in social sciences, psychology, and education. Date appears immediately after author name. Only the first word of a title is capitalized.</div>
+          <div class="about-cite-example">Smith, J. (2023). <em>Title of work</em>. Publisher.</div>
+        </div>
+        <div class="about-cite-block">
+          <div class="about-cite-name">Chicago</div>
+          <div class="about-cite-desc">Widely used in history, fine arts, and some humanities disciplines. Similar structure to MLA but with variation in punctuation and article/book treatment.</div>
+          <div class="about-cite-example">Smith, Jane. "Article Title." <em>Journal Name</em> (2023).</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div><!-- /container -->
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="editModal" onclick="if(event.target===this)closeEdit()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Edit Source</h2>
+      <button class="modal-close" onclick="closeEdit()">✕</button>
+    </div>
+    <input type="hidden" id="edit-id" />
+    <div class="form-grid">
+      <div class="form-group full"><label>Title *</label><input type="text" id="edit-title" /></div>
+      <div class="form-group"><label>Author *</label><input type="text" id="edit-author" /></div>
+      <div class="form-group"><label>Year *</label><input type="number" id="edit-year" /></div>
+      <div class="form-group"><label>Publication</label><input type="text" id="edit-publication" /></div>
+      <div class="form-group"><label>URL</label><input type="url" id="edit-url" /></div>
+      <div class="form-group"><label>Source Type</label>
+        <select id="edit-type">
+          <option value="article">Journal Article</option>
+          <option value="book">Book</option>
+          <option value="website">Website</option>
+          <option value="newspaper">Newspaper</option>
+          <option value="video">Video / Documentary</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Stance</label>
+        <select id="edit-stance">
+          <option value="supports">Supports Thesis</option>
+          <option value="challenges">Challenges Thesis</option>
+          <option value="background">Background</option>
+          <option value="neutral">Neutral</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Topic Tags</label><input type="text" id="edit-tags" /></div>
+      <div class="form-group full"><label>Your Annotation *</label><textarea id="edit-annotation" rows="3"></textarea></div>
+      <div class="form-group full"><label>Source Text</label><textarea id="edit-text" rows="3"></textarea></div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="saveEdit()">💾 Save Changes</button>
+      <button class="btn btn-outline" onclick="closeEdit()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- CITE MODAL -->
+<div class="modal-overlay" id="citeModal" onclick="if(event.target===this)closeCite()">
+  <div class="modal" style="max-width:580px;">
+    <div class="modal-header">
+      <h2>Citation Generator</h2>
+      <button class="modal-close" onclick="closeCite()">✕</button>
+    </div>
+    <div id="citeContent"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── PDF.js worker ──
+if (typeof pdfjsLib !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+}
+
+// ── DATA STORE ──
+let sources = JSON.parse(localStorage.getItem('research_sources') || '[]');
+let bibFormat = 'mla';
+
+function saveData() {
+  localStorage.setItem('research_sources', JSON.stringify(sources));
+}
+
+// ── ADD SOURCE ──
+function addSource() {
+  const title       = document.getElementById('src-title').value.trim();
+  const author      = document.getElementById('src-author').value.trim();
+  const year        = parseInt(document.getElementById('src-year').value);
+  const publication = document.getElementById('src-publication').value.trim();
+  const url         = document.getElementById('src-url').value.trim();
+  const type        = document.getElementById('src-type').value;
+  const stance      = document.querySelector('input[name="stance"]:checked').value;
+  const tagsRaw     = document.getElementById('src-tags').value.trim();
+  const annotation  = document.getElementById('src-annotation').value.trim();
+  const text        = document.getElementById('src-text').value.trim();
+
+  if (!title || !author || !year || !annotation) {
+    showToast('Please fill in Title, Author, Year, and Annotation.', 'warn');
+    return;
+  }
+
+  const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim().toLowerCase()).filter(Boolean) : [];
+
+  sources.push({
+    id: Date.now() + Math.random(),
+    title, author, year, publication, url,
+    source_type: type,
+    stance, tags, annotation, text,
+    word_count: text.split(/\s+/).filter(Boolean).length,
+    date_added: new Date().toISOString()
+  });
+
+  saveData();
+  clearAddForm();
+  showToast(`✓ "${title}" added`);
+}
+
+function clearAddForm() {
+  ['src-title','src-author','src-year','src-publication','src-url','src-tags','src-annotation','src-text']
+    .forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('src-type').value = 'article';
+  document.getElementById('stance-supports').checked = true;
+  document.getElementById('docStatus').textContent = '';
+}
+
+// ── SAMPLE DATA ──
+function loadSampleData() {
+  if (sources.length > 0 && !confirm('Add sample data to your existing sources?')) return;
+
+  const samples = [
+    {
+      title: "Social Media Use and Mental Health in Adolescents: A Longitudinal Study",
+      author: "Twenge, Jean M.", year: 2023, publication: "Journal of Youth and Adolescence",
+      url: "", source_type: "article", stance: "supports",
+      tags: ["social media","mental health","adolescents"],
+      annotation: "Twenge's longitudinal study tracks 5,000 teenagers over four years, finding a significant correlation between daily social media use exceeding three hours and elevated rates of depression and anxiety. The data strongly supports the argument that excessive social media use harms adolescent mental health.",
+      text: "Our findings indicate that adolescents who use social media for more than three hours per day show significantly higher rates of depressive symptoms compared to peers with limited use. The longitudinal design controls for pre-existing conditions."
+    },
+    {
+      title: "Connected but Alone? Rethinking Social Media and Teen Loneliness",
+      author: "Orben, Amy", year: 2022, publication: "Psychological Science",
+      url: "", source_type: "article", stance: "challenges",
+      tags: ["social media","loneliness","mental health"],
+      annotation: "Orben argues that the relationship between social media and mental health is far more nuanced than popular discourse suggests, noting that effect sizes are smaller than those for other risk factors like insufficient sleep or lack of exercise. This source challenges the direct causality argument.",
+      text: "Meta-analysis of 226 studies reveals that social media's effect on wellbeing, while statistically significant, is modest in magnitude — comparable to wearing glasses. Researchers should resist amplifying moral panic around technology."
+    },
+    {
+      title: "The Anxious Generation: How the Great Rewiring of Childhood Is Causing an Epidemic of Mental Illness",
+      author: "Haidt, Jonathan", year: 2024, publication: "Penguin Press",
+      url: "", source_type: "book", stance: "supports",
+      tags: ["social media","mental health","childhood","policy"],
+      annotation: "Haidt synthesizes decades of research across psychology, sociology, and public health to argue that smartphones and social media fundamentally altered childhood development starting around 2012. This is a key supporting source for the policy intervention argument.",
+      text: "The smartphone-based childhood that began in the early 2010s has produced the first generation in recorded history to be less mentally healthy than the generations before it. The evidence across countries points to a common cause: social media."
+    },
+    {
+      title: "Internet Use Statistics — Pew Research Center",
+      author: "Anderson, Monica", year: 2023, publication: "Pew Research Center",
+      url: "https://www.pewresearch.org", source_type: "website", stance: "background",
+      tags: ["social media","statistics","youth"],
+      annotation: "Provides current demographic data on social media use among American teenagers, including platform preferences and daily usage hours by age group. Essential background context for establishing the scope of the issue.",
+      text: "95% of teens report having access to a smartphone. 54% of teens report using social media constantly or almost constantly. TikTok, Instagram, and Snapchat dominate usage among those aged 13–17."
+    },
+    {
+      title: "Screen Time and Sleep in Children and Adolescents",
+      author: "Hale, Lauren", year: 2019, publication: "Pediatrics",
+      url: "", source_type: "article", stance: "background",
+      tags: ["screen time","sleep","adolescents"],
+      annotation: "Reviews evidence linking screen time — including social media — to sleep disruption in adolescents, which in turn affects mood and cognitive function. Provides important context for the mental health argument by establishing the sleep disruption pathway.",
+      text: "Evidence consistently shows that evening screen use is associated with later bedtimes, shorter sleep duration, and poorer sleep quality in children and adolescents."
+    },
+    {
+      title: "Digital Well-Being: A Social Ecological Approach",
+      author: "Valkenburg, Patti M.", year: 2022, publication: "Current Opinion in Psychology",
+      url: "", source_type: "article", stance: "neutral",
+      tags: ["social media","well-being","individual differences"],
+      annotation: "Proposes a nuanced social-ecological framework where social media's effects vary significantly based on individual vulnerability factors such as pre-existing anxiety and offline social support. Useful for a balanced conclusion that accounts for individual differences.",
+      text: "Social media is not uniformly harmful or beneficial. Its effects depend on who uses it, how, and in what context. A one-size-fits-all policy response is unlikely to be effective."
+    }
+  ];
+
+  samples.forEach(s => {
+    sources.push({ ...s, id: Date.now() + Math.random(), word_count: s.text.split(/\s+/).length, date_added: new Date().toISOString() });
+  });
+
+  saveData();
+  showToast(`✓ Loaded ${samples.length} sample sources`);
+  switchTab('browse', document.querySelector('.tab-btn:nth-child(2)'));
+}
+
+// ── RENDER TABLE ──
+function renderTable() {
+  const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
+  const stance = document.getElementById('filterStance')?.value;
+  const type   = document.getElementById('filterType')?.value;
+  const tag    = document.getElementById('filterTag')?.value;
+
+  const filtered = sources.filter(s => {
+    if (stance && s.stance !== stance) return false;
+    if (type && s.source_type !== type) return false;
+    if (tag && !s.tags.includes(tag)) return false;
+    if (search) {
+      const haystack = [s.title, s.author, s.annotation, s.text, ...(s.tags || [])].join(' ').toLowerCase();
+      if (!haystack.includes(search)) return false;
+    }
+    return true;
+  }).sort((a, b) => a.author.localeCompare(b.author));
+
+  // Update tag filter options
+  const allTags = [...new Set(sources.flatMap(s => s.tags))].sort();
+  const tagSel = document.getElementById('filterTag');
+  const currentTag = tagSel.value;
+  tagSel.innerHTML = '<option value="">All Tags</option>' + allTags.map(t => `<option${t === currentTag ? ' selected' : ''}>${t}</option>`).join('');
+
+  // Stats
+  const countByStance = (st) => sources.filter(s => s.stance === st).length;
+  document.getElementById('statsStrip').innerHTML = `
+    <div class="stat-pill">Total: <span>${sources.length}</span></div>
+    <div class="stat-pill">Supports: <span>${countByStance('supports')}</span></div>
+    <div class="stat-pill">Challenges: <span>${countByStance('challenges')}</span></div>
+    <div class="stat-pill">Background: <span>${countByStance('background')}</span></div>
+    <div class="stat-pill">Neutral: <span>${countByStance('neutral')}</span></div>
+  `;
+
+  document.getElementById('sourceCount').textContent = filtered.length;
+  const typeLabels = { article: 'Article', book: 'Book', website: 'Website', newspaper: 'Newspaper', video: 'Video', other: 'Other' };
+
+  document.getElementById('tableBody').innerHTML = filtered.length === 0
+    ? `<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--muted);">No sources found.</td></tr>`
+    : filtered.map((s, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td class="title-cell">${escHtml(s.title)}<small>${escHtml(s.author)}</small></td>
+        <td>${s.year}</td>
+        <td>${typeLabels[s.source_type] || s.source_type}</td>
+        <td><span class="badge badge-${s.stance}">${stanceLabel(s.stance)}</span></td>
+        <td>${(s.tags || []).map(t => `<span class="tag-chip">${escHtml(t)}</span>`).join('')}</td>
+        <td style="white-space:nowrap;">
+          <button class="btn btn-outline btn-sm" onclick="openEdit(${s.id})">✏️</button>
+          <button class="btn btn-outline btn-sm" onclick="openCite(${s.id})">📖</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteSource(${s.id})">✕</button>
+        </td>
+      </tr>`).join('');
+}
+
+function deleteSource(id) {
+  sources = sources.filter(s => s.id !== id);
+  saveData();
+  renderTable();
+  showToast('Source deleted');
+}
+
+// ── EDIT MODAL ──
+function openEdit(id) {
+  const s = sources.find(s => s.id === id);
+  if (!s) return;
+  document.getElementById('edit-id').value = id;
+  document.getElementById('edit-title').value = s.title;
+  document.getElementById('edit-author').value = s.author;
+  document.getElementById('edit-year').value = s.year;
+  document.getElementById('edit-publication').value = s.publication || '';
+  document.getElementById('edit-url').value = s.url || '';
+  document.getElementById('edit-type').value = s.source_type;
+  document.getElementById('edit-stance').value = s.stance;
+  document.getElementById('edit-tags').value = (s.tags || []).join(', ');
+  document.getElementById('edit-annotation').value = s.annotation;
+  document.getElementById('edit-text').value = s.text || '';
+  document.getElementById('editModal').classList.add('open');
+}
+
+function closeEdit() { document.getElementById('editModal').classList.remove('open'); }
+
+function saveEdit() {
+  const id         = Number(document.getElementById('edit-id').value);
+  const title      = document.getElementById('edit-title').value.trim();
+  const author     = document.getElementById('edit-author').value.trim();
+  const year       = parseInt(document.getElementById('edit-year').value);
+  const annotation = document.getElementById('edit-annotation').value.trim();
+
+  if (!title || !author || !year || !annotation) {
+    showToast('Please fill in Title, Author, Year, and Annotation.', 'warn');
+    return;
+  }
+
+  const tagsRaw = document.getElementById('edit-tags').value.trim();
+  const idx = sources.findIndex(s => s.id === id);
+  if (idx === -1) return;
+
+  sources[idx] = {
+    ...sources[idx],
+    title, author, year,
+    publication: document.getElementById('edit-publication').value.trim(),
+    url: document.getElementById('edit-url').value.trim(),
+    source_type: document.getElementById('edit-type').value,
+    stance: document.getElementById('edit-stance').value,
+    tags: tagsRaw ? tagsRaw.split(',').map(t => t.trim().toLowerCase()).filter(Boolean) : [],
+    annotation,
+    text: document.getElementById('edit-text').value.trim()
+  };
+
+  saveData();
+  closeEdit();
+  renderTable();
+  showToast('✓ Source updated');
+}
+
+// ── THEME MAP ──
+function renderThemeMap() {
+  if (sources.length === 0) {
+    document.getElementById('themeMapContent').innerHTML =
+      `<div class="empty-state"><h3>No sources yet</h3><p>Add sources and tag them to see your Theme Map.</p></div>`;
+    return;
+  }
+
+  const allTags = [...new Set(sources.flatMap(s => s.tags))].sort();
+  let html = '';
+
+  const renderGroup = (label, srcs) => {
+    if (srcs.length === 0) return '';
+    return `<div class="theme-group">
+      <div class="theme-group-title">${escHtml(label)} (${srcs.length})</div>
+      <div class="theme-cards">
+        ${srcs.map(s => `
+          <div class="theme-card ${s.stance}">
+            <div class="theme-card-title">${escHtml(s.title)}</div>
+            <div class="theme-card-meta">${escHtml(s.author)}, ${s.year}</div>
+            <div style="margin-top:6px;">${(s.tags||[]).map(t => `<span class="tag-chip">${escHtml(t)}</span>`).join('')}</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  };
+
+  allTags.forEach(tag => {
+    const tagged = sources.filter(s => s.tags.includes(tag));
+    html += renderGroup(tag.charAt(0).toUpperCase() + tag.slice(1), tagged);
+  });
+
+  const untagged = sources.filter(s => !s.tags || s.tags.length === 0);
+  if (untagged.length > 0) html += renderGroup('Untagged', untagged);
+
+  document.getElementById('themeMapContent').innerHTML = html;
+}
+
+// ── CITATION FORMATTING ──
+function authorReversed(name) {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length < 2) return name;
+  const last = parts[parts.length - 1];
+  const first = parts.slice(0, -1).join(' ');
+  return `${last}, ${first}`;
+}
+
+function authorAPA(name) {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length < 2) return name;
+  const last = parts[parts.length - 1];
+  const initials = parts.slice(0, -1).map(p => p[0].toUpperCase() + '.').join(' ');
+  return `${last}, ${initials}`;
+}
+
+function formatCitation(s, format) {
+  const title = s.title;
+  const pub   = s.publication || '';
+  const url   = s.url ? ` ${s.url}` : '';
+  const yr    = s.year;
+
+  if (format === 'mla') {
+    const auth = authorReversed(s.author);
+    const isBook = s.source_type === 'book';
+    return isBook
+      ? `${auth}. <em>${title}</em>. ${pub ? pub + ', ' : ''}${yr}.${url}`
+      : `${auth}. "${title}." <em>${pub || 'n.p.'}</em>, ${yr}.${url}`;
+  }
+  if (format === 'apa') {
+    const auth = authorAPA(s.author);
+    return `${auth} (${yr}). <em>${title}</em>. ${pub || ''}${url ? '.' + url : '.'}`;
+  }
+  if (format === 'chicago') {
+    const auth = authorReversed(s.author);
+    const isBook = s.source_type === 'book';
+    return isBook
+      ? `${auth}. <em>${title}</em>. ${pub ? pub + ', ' : ''}${yr}.${url}`
+      : `${auth}. "${title}." <em>${pub || 'n.p.'}</em> (${yr}).${url}`;
+  }
+  return '';
+}
+
+// ── BIBLIOGRAPHY ──
+function setFormat(fmt, btn) {
+  bibFormat = fmt;
+  document.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderBibliography();
+}
+
+function renderBibliography() {
+  const sorted = [...sources].sort((a, b) => {
+    const la = authorReversed(a.author).toLowerCase();
+    const lb = authorReversed(b.author).toLowerCase();
+    return la.localeCompare(lb);
+  });
+
+  if (sorted.length === 0) {
+    document.getElementById('bibContent').innerHTML =
+      `<div class="empty-state"><h3>No sources yet</h3><p>Add sources to generate your bibliography.</p></div>`;
+    return;
+  }
+
+  document.getElementById('bibContent').innerHTML = sorted.map(s => `
+    <div class="bib-entry">
+      <button class="btn btn-outline btn-sm bib-copy-btn" onclick="copyCitation(this)">Copy</button>
+      <div class="bib-citation">${formatCitation(s, bibFormat)}</div>
+      ${s.annotation ? `<div class="bib-annotation">${escHtml(s.annotation)}</div>` : ''}
+    </div>`).join('');
+}
+
+function copyAllBib() {
+  const sorted = [...sources].sort((a, b) => authorReversed(a.author).localeCompare(authorReversed(b.author)));
+  const text = sorted.map(s => {
+    const cite = stripHtml(formatCitation(s, bibFormat));
+    return s.annotation ? `${cite}\n   ${s.annotation}` : cite;
+  }).join('\n\n');
+  navigator.clipboard.writeText(text).then(() => showToast('✓ Bibliography copied to clipboard'));
+}
+
+function downloadBib() {
+  if (sources.length === 0) { showToast('No sources to export', 'warn'); return; }
+  const sorted = [...sources].sort((a, b) => authorReversed(a.author).localeCompare(authorReversed(b.author)));
+  const fmt = bibFormat.toUpperCase();
+  const header = `ANNOTATED BIBLIOGRAPHY (${fmt === 'MLA' ? 'MLA 9th Edition' : fmt === 'APA' ? 'APA 7th Edition' : 'Chicago'})\nGenerated: ${new Date().toLocaleDateString()}\n${'═'.repeat(60)}\n\n`;
+  const body = sorted.map(s => {
+    const cite = stripHtml(formatCitation(s, bibFormat));
+    return s.annotation ? `${cite}\n\n   ${s.annotation}` : cite;
+  }).join('\n\n');
+  downloadFile(header + body, `bibliography_${bibFormat}.txt`, 'text/plain');
+  showToast('✓ Bibliography downloaded');
+}
+
+function copyCitation(btn) {
+  const entry = btn.closest('.bib-entry');
+  const cite = entry.querySelector('.bib-citation').innerText;
+  const ann  = entry.querySelector('.bib-annotation')?.innerText || '';
+  const text = ann ? `${cite}\n   ${ann}` : cite;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  });
+}
+
+// ── CITE MODAL ──
+function openCite(id) {
+  const s = sources.find(s => s.id === id);
+  if (!s) return;
+  document.getElementById('citeContent').innerHTML = ['mla','apa','chicago'].map(fmt => {
+    const labels = { mla: 'MLA 9th Edition', apa: 'APA 7th Edition', chicago: 'Chicago' };
+    return `<div class="cite-block">
+      <label>${labels[fmt]}</label>
+      <button class="btn btn-outline btn-sm copy-btn" onclick="this.textContent='Copied!';navigator.clipboard.writeText(this.nextElementSibling.innerText).then(()=>setTimeout(()=>this.textContent='Copy',1500))">Copy</button>
+      <p>${formatCitation(s, fmt)}</p>
+    </div>`;
+  }).join('');
+  document.getElementById('citeModal').classList.add('open');
+}
+function closeCite() { document.getElementById('citeModal').classList.remove('open'); }
+
+// ── OUTLINE HELPER ──
+function renderOutline() {
+  const groups = [
+    { key: 'background',  cls: 'outline-background', label: 'Background / Context' },
+    { key: 'supports',    cls: 'outline-supports',   label: 'Evidence Supporting Thesis' },
+    { key: 'challenges',  cls: 'outline-challenges',  label: 'Counter-Arguments' },
+    { key: 'neutral',     cls: 'outline-neutral',     label: 'Neutral / Additional Perspectives' }
+  ];
+
+  if (sources.length === 0) {
+    document.getElementById('outlineContent').innerHTML =
+      `<div class="empty-state"><h3>No sources yet</h3><p>Add sources then return here to build your outline.</p></div>`;
+    return;
+  }
+
+  document.getElementById('outlineContent').innerHTML = groups.map(g => {
+    const srcs = sources.filter(s => s.stance === g.key);
+    return `<div class="outline-section ${g.cls}">
+      <div class="outline-section-title">${g.label} (${srcs.length})</div>
+      ${srcs.length === 0
+        ? `<p class="outline-empty">No sources tagged as "${g.label.toLowerCase()}" yet.</p>`
+        : `<ul class="outline-source-list">
+            ${srcs.map(s => `<li><span><strong>${escHtml(s.author)}</strong> (${s.year}) — ${escHtml(s.title)}</span></li>`).join('')}
+           </ul>`}
+    </div>`;
+  }).join('');
+}
+
+function downloadOutline() {
+  if (sources.length === 0) { showToast('No sources to export', 'warn'); return; }
+  const thesis = document.getElementById('thesisInput')?.value.trim() || '[Your thesis statement]';
+  const groups = [
+    { key: 'background',  label: 'I. BACKGROUND / CONTEXT' },
+    { key: 'supports',    label: 'II. EVIDENCE SUPPORTING THESIS' },
+    { key: 'challenges',  label: 'III. COUNTER-ARGUMENTS' },
+    { key: 'neutral',     label: 'IV. NEUTRAL / ADDITIONAL PERSPECTIVES' }
+  ];
+
+  let text = `PAPER OUTLINE\nGenerated: ${new Date().toLocaleDateString()}\n${'═'.repeat(60)}\n\nTHESIS: ${thesis}\n\n`;
+  groups.forEach(g => {
+    const srcs = sources.filter(s => s.stance === g.key);
+    text += `${g.label}\n`;
+    if (srcs.length === 0) { text += `   (No sources assigned)\n`; }
+    else { srcs.forEach(s => { text += `   • ${s.author} (${s.year}) — ${s.title}\n     ${s.annotation}\n\n`; }); }
+    text += '\n';
+  });
+
+  downloadFile(text, 'paper_outline.txt', 'text/plain');
+  showToast('✓ Outline downloaded');
+}
+
+// ── TAB SWITCHING ──
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+
+  if (name === 'browse')  renderTable();
+  if (name === 'map')     renderThemeMap();
+  if (name === 'bib')     renderBibliography();
+  if (name === 'outline') renderOutline();
+}
+
+// ── PDF / DOCX IMPORT ──
+async function extractPDF(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let text = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(item => item.str).join(' ') + '\n';
+  }
+  return text.trim();
+}
+
+async function extractDOCX(file) {
+  const buf = await file.arrayBuffer();
+  const result = await mammoth.extractRawText({ arrayBuffer: buf });
+  return result.value.trim();
+}
+
+async function handleDocImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const status = document.getElementById('docStatus');
+  status.textContent = 'Extracting text…';
+  try {
+    let text = '';
+    if (file.name.endsWith('.pdf'))       text = await extractPDF(file);
+    else if (file.name.endsWith('.docx')) text = await extractDOCX(file);
+    else { status.textContent = 'Unsupported format. Use PDF or DOCX.'; return; }
+
+    document.getElementById('src-text').value = text;
+    status.textContent = `✓ Extracted ${text.split(/\s+/).filter(Boolean).length} words from "${file.name}". Fill in the fields above and click Add Source.`;
+    document.getElementById('src-title').focus();
+  } catch (e) {
+    status.textContent = 'Error: ' + e.message;
+  }
+  event.target.value = '';
+}
+
+// Drag-and-drop wiring
+const docDropZone = document.getElementById('docDropZone');
+docDropZone.addEventListener('dragover', e => { e.preventDefault(); docDropZone.classList.add('dragover'); });
+docDropZone.addEventListener('dragleave', () => docDropZone.classList.remove('dragover'));
+docDropZone.addEventListener('drop', e => {
+  e.preventDefault(); docDropZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) handleDocImport({ target: { files: [file], value: '' } });
+});
+
+// ── HELPERS ──
+function stanceLabel(s) {
+  return { supports: 'Supports', challenges: 'Challenges', background: 'Background', neutral: 'Neutral' }[s] || s;
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function stripHtml(s) { return s.replace(/<[^>]+>/g, ''); }
+
+function showToast(msg, type = 'ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = type === 'warn' ? '#D97706' : 'var(--primary)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function downloadFile(content, name, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+// ── INIT ──
+renderTable();
+</script>
+</body>
+</html>
