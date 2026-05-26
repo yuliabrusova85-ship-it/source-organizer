@@ -1,5 +1,7 @@
 # Research Source Organizer
 
+**Live:** https://yuliabrusova85-ship-it.github.io/source-organizer/
+
 A single-file HTML tool for students to organize research sources, build annotated bibliographies, and map argument structure. No login, no server, no API key — works in any browser and saves data locally.
 
 ## Usage
